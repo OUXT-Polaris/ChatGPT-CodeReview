@@ -29,14 +29,40 @@ export const robot = (app: Probot) => {
 
       return new Chat(data.value);
     } catch {
-      await context.octokit.issues.createComment({
-        repo: repo.repo,
-        owner: repo.owner,
-        issue_number: context.pullRequest().pull_number,
-        body: `Seems you are using me but didn't get OPENAI_API_KEY seted in Variables/Secrets for this repo. you could follow [readme](https://github.com/anc95/ChatGPT-CodeReview) for more information`,
-      });
-      return null;
-    }
+      try {
+        const { data } = (await context.octokit.request('GET /repos/{owner}/{repo}/actions/organization-variables/{name}', {
+            owner: repo.owner,
+            repo: repo.repo,
+            name: OPENAI_API_KEY,
+          }));
+          if (!data?.value) {
+            return null;
+          }
+          return new Chat(data.value);
+      }
+      catch {
+        try {
+          const { data } = (await context.octokit.request('GET /repos/{owner}/{repo}/actions/organization-variables/{name}', {
+            owner: repo.owner,
+            repo: repo.repo,
+            name: OPENAI_API_KEY,
+          }));
+          if (!data?.value) {
+            return null;
+          }
+          return new Chat(data.value);
+        }
+        catch {
+          await context.octokit.issues.createComment({
+              repo: repo.repo,
+              owner: repo.owner,
+              issue_number: context.pullRequest().pull_number,
+              body: `Seems you are using me but didn't get OPENAI_API_KEY seted in Variables/Secrets for this repo. you could follow [readme](https://github.com/anc95/ChatGPT-CodeReview) for more information`,
+          });
+          return null;
+        }
+      }
+  }
   };
 
   app.on(
